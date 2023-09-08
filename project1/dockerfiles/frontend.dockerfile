@@ -1,9 +1,7 @@
-FROM sekwonlee/kvs:base
+FROM python:3.6
 
-MAINTAINER Sekwon Lee <sklee@cs.utexas.edu> version: 0.1
+WORKDIR /
 
-USER root
-
-WORKDIR $KVS_HOME
+COPY frontend.py rwlock.py /
 
 CMD python3 frontend.py

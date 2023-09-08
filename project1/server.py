@@ -6,17 +6,24 @@ serverId = 0
 basePort = 9000
 
 class KVSRPCServer:
-    def put(self, key, value):
-        return "[Server " + str(serverId) + "] Receive a put request: " + "Key = " + str(key) + ", Val = " + str(value)
+  def __init__(self):
+    self.store = dict()
 
-    def get(self, key):
-        return "[Server " + str(serverId) + "] Receive a get request: " + "Key = " + str(key)
+  def printKVPairs(self):
+    return "\n".join(f"{k}: {v}" for k, v in self.store.items())
 
-    def printKVPairs(self):
-        return "[Server " + str(serverId) + "] Receive a request printing all KV pairs stored in this server"
+  def put(self, key, value):
+    self.store[key] = value
+    print("Stored", self.store[key])
 
-    def shutdownServer(self):
-        return "[Server " + str(serverId) + "] Receive a request for a normal shutdown"
+  def get(self, key):
+    if key in self.store:
+      return self.store[key]
+    else:
+      return "ERR_KEY"
+
+  def shutdownServer(self):
+    quit()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = '''To be added.''')
@@ -28,7 +35,8 @@ if __name__ == '__main__':
 
     serverId = args.serverId[0]
 
-    server = xmlrpc.server.SimpleXMLRPCServer(("localhost", basePort + serverId))
+    server = xmlrpc.server.SimpleXMLRPCServer(("localhost", basePort + serverId),
+      allow_none=True, use_builtin_types=True)
     server.register_instance(KVSRPCServer())
 
     server.serve_forever()

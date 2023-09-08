@@ -1,9 +1,7 @@
-FROM sekwonlee/kvs:base
+FROM python:3.6
 
-MAINTAINER Sekwon Lee <sklee@cs.utexas.edu> version: 0.1
+WORKDIR /
 
-USER root
+COPY server.py /
 
-WORKDIR $KVS_HOME
-
-CMD python3 server.py -i $SERVER_ID
+CMD python3 server.py

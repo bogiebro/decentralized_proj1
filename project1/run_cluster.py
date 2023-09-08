@@ -141,7 +141,7 @@ if __name__ == '__main__':
                                     use the default ($KVS_HOME/conf/kvs-base.yml).''')
 
     if 'KVS_HOME' not in os.environ:
-        os.environ['KVS_HOME'] = "/home/" + os.environ['USER'] + "/projects/cs380d-f23/project1/"
+      os.environ['KVS_HOME'] = "/home/sam/classes/distributed/cs380d-f23/project1/"
 
     parser.add_argument('-c', '--client', nargs=1, type=int, metavar='C',
                         help='The number of client nodes to start with ' +
