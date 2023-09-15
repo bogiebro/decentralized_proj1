@@ -3,13 +3,14 @@ import xmlrpc.server
 from socketserver import ThreadingMixIn
 from xmlrpc.server import SimpleXMLRPCServer
 from rwlock import RWLockDict, RWLock
-import random
 import socket
 import concurrent.futures as futures
 from contextlib import contextmanager
 import logging
 from threading import Thread
 import time
+from sortedcontainers import SortedDict
+import random
 
 kvsServers = dict()
 baseAddr = "http://localhost:"
@@ -22,34 +23,32 @@ def tag(fut, id):
   fut.server_id = id
   return fut
 
-def sort_results(results):
-  failure = results.not_done
-  success = []
+def get_failed(results):
+  failed = list(results.not_done)
   for b in results.done:
-    if b.exception(timeout=0) is None:
-      success.append(b)
-    else:
-      failure.append(b)
-  return success, failure
+    if b.exception(timeout=0) is not None:
+      failed.append(b)
+  return failed
 
 class FrontendRPCServer:
   def __init__(self):
     self.lockdict = RWLockDict()
-    self.servers = dict()
-    self.server_ids = []
+    self.servers = SortedDict()
 
   def put(self, key, value):
-    if len(self.server_ids) == 0:
+    if len(self.servers) == 0:
       return "ERR_NOEXIST"
     with futures.ThreadPoolExecutor() as ex:
       with self.lockdict.w_locked(key):
         results = futures.wait(
           [tag(ex.submit(lambda : s.put(key, value)), id)
           for id, s in self.servers.items()], timeout=1)
-        success, failure = sort_results(results)
-        self.server_ids = [b.server_id for b in success]
-        for b in failure:
-          del self.servers[b.server_id]
+        failures = get_failed(results)
+        for b in failures:
+            try:
+              del self.servers[b.server_id]
+            except KeyError:
+              pass
     return ""
 
   def heartbeat(self):
@@ -57,38 +56,37 @@ class FrontendRPCServer:
         results = futures.wait(
           [tag(ex.submit(lambda : s.beat()), id)
           for id, s in self.servers.items()], timeout=0.5)
-        self.server_ids = [b.server_id for b in results.done]
-        for b in results.not_done:
-          del self.servers[b.server_id]
+        failures = get_failed(results)
+        for b in failures:
+          try:
+            del self.servers[b.server_id]
+          except KeyError:
+            pass
 
   def get(self, key):
     print("Frontend getting key", key)
     with self.lockdict.r_locked(key):
-      return self.with_rand_server(lambda id:
-        self.servers[id].get(key), "ERR_KEY")
+      return self.with_rand_server(lambda server:
+        server.get(key), "ERR_KEY")
 
-  # NOTE: this isn't thread safe.
-  # The server id list needs to be locked while we get a
-  # random value. Also: why do we maintain a separate id list?
-  # Why not just maintain the dict?
   def with_rand_server(self, f, default):
-    if len(self.server_ids) == 0:
-      return default
-    id_ix = random.randint(0, len(self.server_ids) - 1)
-    id = self.server_ids[id_ix]
     with futures.ThreadPoolExecutor() as ex:
       while True:
-        fut = ex.submit(f, id)
+        if len(self.servers) == 0:
+          return default
+        n = random.randint(0, len(self.servers) - 1)
+        try:
+          id, server = self.servers.peekitem(n)
+        except IndexError:
+          continue
+        fut = ex.submit(f, server)
         try:
           return fut.result(timeout=1)
         except (TimeoutError, ConnectionRefusedError):
-          self.server_ids[id_ix] = self.server_ids[-1]
-          self.server_ids.pop()
-          del self.servers[id]
-          if len(self.server_ids) == 0:
-            return default
-          id_ix = random.randint(0, len(self.server_ids))
-          id = self.server_ids[id_ix]
+          try:
+            del self.servers[id]
+          except KeyError:
+            pass
 
   def printKVPairs(self, serverId):
     if serverId not in self.servers:
@@ -107,22 +105,23 @@ class FrontendRPCServer:
       allow_none=True, use_builtin_types=True)
     if len(self.servers) > 0:
       with self.lockdict.all_locked():
-        store = self.with_rand_server(lambda id:
-          self.servers[id].getAll(), "")
+        store = self.with_rand_server(lambda s: s.getAll(), "")
         if len(store) > 0:
           self.servers[serverId].putAll(store)
-    self.server_ids.append(serverId)
     return ""
 
   def listServer(self):
-    if len(self.server_ids) == 0:
+    if len(self.servers) == 0:
       return "ERR_NOSERVERS"
-    return ", ".join(map(repr, sorted(self.server_ids)))
+    return ", ".join(map(repr, sorted(self.servers.keys())))
 
   def shutdownServer(self, serverId):
-    result = self.servers[serverId].shutdownServer()
-    del self.servers[serverId]
-    return result
+    try:
+      result = self.servers[serverId].shutdownServer()
+      del self.servers[serverId]
+    except KeyError:
+      pass
+    return ""
 
 logging.basicConfig(filename="frontend.log", level=logging.DEBUG)
 server = SimpleThreadedXMLRPCServer(("localhost", 8001))
@@ -131,8 +130,8 @@ server.register_instance(rpc)
 
 def hearbeat_loop():
   while True:
-    Thread(target= lambda: rpc.heartbeat()).start()
+    Thread(daemon=True, target= lambda: rpc.heartbeat()).start()
     time.sleep(0.5)
 
-# Thread(target=hearbeat_loop).start()
+Thread(target=hearbeat_loop).start()
 server.serve_forever()

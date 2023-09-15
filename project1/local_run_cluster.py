@@ -109,10 +109,10 @@ if __name__ == '__main__':
     # get("hey")
     # get("hey")
     # get("truck")
-    # listServer()
+    listServer()
     killServer(0)
-    # time.sleep(2)
-    get("hey")
+    time.sleep(1)
+    # get("hey")
     listServer()
 
     cleanup(front_thread)
