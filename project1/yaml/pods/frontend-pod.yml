@@ -9,14 +9,10 @@ spec:
   containers:
   - name: frontend-container
     image: frontend
-    imagePullPolicy: Always
-    securityContext:
-      privileged: true
+    imagePullPolicy: Never
     env:
     - name: KVS_CLUSTER_NAME
       value: cs380d
   imagePullSecrets:
   - name: regcred
-  nodeSelector:
-    role: general
   hostNetwork: true

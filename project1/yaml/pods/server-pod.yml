@@ -9,14 +9,8 @@ spec:
   containers:
   - name: server-container
     image: server
-    imagePullPolicy: Always
-    securityContext:
-      privileged: true
+    imagePullPolicy: IfNotPresent
     env:
     - name: SERVER_ID
       value: SERVER_ID_DUMMY
-  imagePullSecrets:
-  - name: regcred
-  nodeSelector:
-    role: general
   hostNetwork: true

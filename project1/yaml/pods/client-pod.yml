@@ -9,14 +9,8 @@ spec:
   containers:
   - name: client-container
     image: client
-    imagePullPolicy: Always
-    securityContext:
-      privileged: true
+    imagePullPolicy: IfNotPresent
     env:
     - name: CLIENT_ID
       value: CLIENT_ID_DUMMY
-  imagePullSecrets:
-  - name: regcred
-  nodeSelector:
-    role: general
   hostNetwork: true

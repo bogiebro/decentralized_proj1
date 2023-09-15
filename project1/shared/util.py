@@ -69,8 +69,10 @@ def check_wait_pod_status(client, selector, status):
                                               label_selector=selector).items
         pod_statuses = list(filter(lambda pod: pod.status.phase != status, pod_list))
         if status == 'Terminating':
-            print(pod_statuses)
             time.sleep(5)
+        else:
+            time.sleep(1)
+        print("Waiting for pod to start")
         done = len(pod_statuses) == 0
 
 def get_pod_ips(client, selector, is_running=False):
