@@ -2,30 +2,51 @@ from contextlib import contextmanager
 from threading  import Lock
 from collections import defaultdict
 
+# NOTE: currently disabled to test concurrency
 class RWLock:
     def __init__(self):
-        self.w_lock = Lock()
-        self.num_r_lock = Lock()
-        self.num_r = 0
+      self.w_lock = Lock()
+      self.num_r_lock = Lock()
+      self.num_r = 0
 
     def r_acquire(self):
+      return
       with self.num_r_lock:
         self.num_r += 1
         if self.num_r == 1:
           self.w_lock.acquire()
 
     def r_release(self):
-        assert self.num_r > 0
-        with self.num_r_lock:
-          self.num_r -= 1
-          if self.num_r == 0:
-            self.w_lock.release()
+      return 
+      assert self.num_r > 0
+      with self.num_r_lock:
+        self.num_r -= 1
+        if self.num_r == 0:
+          self.w_lock.release()
 
     def w_acquire(self):
+      return
       self.w_lock.acquire()
 
     def w_release(self):
+      return
       self.w_lock.release()
+
+    @contextmanager
+    def r_locked(self):
+      try:
+        self.r_acquire()
+        yield
+      finally:
+        self.r_release()
+
+    @contextmanager
+    def w_locked(self):
+      try:
+        self.w_acquire()
+        yield
+      finally:
+        self.w_release()
 
 class RWLockDict:
   def __init__(self):

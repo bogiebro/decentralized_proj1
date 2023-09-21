@@ -36,16 +36,15 @@ def killServer(servers, serverId):
 def shutdownServer(frontend, serverId):
     frontend.shutdownServer(serverId)
 
-def put(clientList, key, value):
-    return clientList[random.randint(1, 100000) % len(clientList)].put(key, value)
+def put(clients, key, value):
+    return clients.clientList[random.randint(0, len(clients.clientList) - 1)].put(key, value)
 
-def get(clientList, key):
-    client = clientList[random.randint(1, len(clientList)) % len(clientList)]
+def get(clients, key):
+    client = clients.clientList[random.randint(0, len(clients.clientList) - 1)]
     return client.get(key)
 
 def printKVPairs(frontend, serverId):
     return frontend.printKVPairs(serverId)
-
 
 @pytest.fixture(scope="module")
 def frontend():
@@ -71,34 +70,42 @@ def servers(scope="function"):
   yield s
   for v in s.map.values():
     v.kill()
+  for v in s.map.values():
+    v.wait()
 
 @pytest.fixture
-def clients(scope="function"):
+def clients(scope="module"):
   s = ClientList()
   yield s
   for v in s.clientProcs:
     v.kill()
 
+def test_kvstore(frontend, servers, clients):
+  for _ in range(3):
+    addServer(frontend, servers)
+  addClient(clients)
+  put(clients, "hey", "jude")
+  assert get(clients, "hey") == "jude"
+
 # def test_heartbeat(frontend, servers, clients):
 #     addServer(frontend, servers)
 #     addServer(frontend, servers)
-#     addClient(clients)
 #     assert listServer(frontend) == "0, 1"
 #     killServer(servers, 0)
 #     time.sleep(1)
 #     assert listServer(frontend) == "1"
 
-@pytest.mark.parametrize("n", [20])
+@pytest.mark.parametrize("n", [1, 2])
 def test_conc_reads(frontend, servers, n):
-  # multicall = xmlrpc.client.MultiCall(frontend)
+  multicall = xmlrpc.client.MultiCall(frontend)
   for i in range(n):
     addServer(frontend, servers)
-  # _ = multicall()
-  # sp.run(["python", "clientWriter.py", "-v" "5"])
-  # procs = [sp.Popen(["python", "clientReader.py"]) for _ in range(50)]
-  # start_time = time.time()
-  # for p in procs:
-  #   p.wait()
-  # end_time = time.time()
-  # logging.warning(f"Time with {n} {end_time - start_time}")
+  _ = multicall()
+  sp.run(["python", "clientWriter.py", "-v" "5"])
+  procs = [sp.Popen(["python", "clientReader.py"]) for _ in range(500)]
+  start_time = time.time()
+  for p in procs:
+    p.wait()
+  end_time = time.time()
+  logging.warning(f"Time with {n} {end_time - start_time}")
 
