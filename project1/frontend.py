@@ -51,18 +51,6 @@ class FrontendRPCServer:
               pass
     return ""
 
-  def heartbeat(self):
-    with futures.ThreadPoolExecutor() as ex:
-        results = futures.wait(
-          [tag(ex.submit(lambda : s.beat()), id)
-          for id, s in self.servers.items()], timeout=0.5)
-        failures = get_failed(results)
-        for b in failures:
-          try:
-            del self.servers[b.server_id]
-          except KeyError:
-            pass
-
   def get(self, key):
     print("Frontend getting key", key)
     with self.lockdict.r_locked(key):
@@ -108,7 +96,7 @@ class FrontendRPCServer:
         store = self.with_rand_server(lambda s: s.getAll(), "")
         if len(store) > 0:
           self.servers[serverId].putAll(store)
-    return ""
+    return "OK"
 
   def listServer(self):
     if len(self.servers) == 0:
@@ -123,14 +111,29 @@ class FrontendRPCServer:
       pass
     return ""
 
+
+def heartbeat(frontend):
+  with futures.ThreadPoolExecutor() as ex:
+      results = futures.wait(
+        [tag(ex.submit(lambda : s.beat()), id)
+        for id, s in frontend.servers.items()], timeout=0.5)
+      failures = get_failed(results)
+      for b in failures:
+        try:
+          del frontend.servers[b.server_id]
+        except KeyError:
+          pass
+
+
 logging.basicConfig(filename="frontend.log", level=logging.DEBUG)
 server = SimpleThreadedXMLRPCServer(("localhost", 8001))
+server.register_multicall_functions()
 rpc = FrontendRPCServer()
 server.register_instance(rpc)
 
 def hearbeat_loop():
   while True:
-    Thread(daemon=True, target= lambda: rpc.heartbeat()).start()
+    Thread(daemon=True, target= lambda: heartbeat(rpc)).start()
     time.sleep(0.5)
 
 Thread(target=hearbeat_loop).start()
