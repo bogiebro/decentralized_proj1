@@ -91,12 +91,12 @@ class FrontendRPCServer:
 
   def addServer(self, serverId):
     # logging.info(f"Connecting to {baseServerPort + serverId}") 
-    # if len(self.servers) > 0:
-    #   server = connect(serverId)
-    #   with self.lockdict.all_locked():
-    #     store = self.with_rand_server(lambda s: connect(s).getAll(), {})
-    #     if len(store) > 0:
-    #       server.putAll(store)
+    if len(self.servers) > 0:
+      server = connect(serverId)
+      with self.lockdict.all_locked():
+        store = self.with_rand_server(lambda s: connect(s).getAll(), {})
+        if len(store) > 0:
+          server.putAll(store)
     self.servers.add(serverId)
     return "OK"
 
@@ -146,5 +146,5 @@ def hearbeat_loop():
     Thread(daemon=True, target= lambda: heartbeat(rpc)).start()
     time.sleep(0.5)
 
-# Thread(target=hearbeat_loop).start()
+Thread(target=hearbeat_loop).start()
 server.serve_forever()

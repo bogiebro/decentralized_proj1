@@ -1,12 +1,17 @@
 import argparse
 import xmlrpc.client
 import xmlrpc.server
+from socketserver import ThreadingMixIn
+from xmlrpc.server import SimpleXMLRPCServer
 import logging
 
 clientId = 0
 basePort = 7000
 
 frontend = xmlrpc.client.ServerProxy("http://localhost:8001")
+
+class SimpleThreadedXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer):
+  pass
 
 class ClientRPCServer:
     def put(self, key, value):
@@ -28,7 +33,7 @@ if __name__ == '__main__':
 
     logging.info(f"Listening on {basePort + clientId}") 
 
-    server = xmlrpc.server.SimpleXMLRPCServer(("localhost", basePort + clientId), use_builtin_types=True, allow_none=True)
+    server = SimpleThreadedXMLRPCServer(("localhost", basePort + clientId), use_builtin_types=True, allow_none=True)
     server.register_instance(ClientRPCServer())
 
     server.serve_forever()

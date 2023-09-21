@@ -2,6 +2,7 @@ import argparse
 import xmlrpc.client
 import xmlrpc.server
 import logging
+import time
 
 serverId = 0
 basePort = 9000
@@ -21,6 +22,7 @@ class KVSRPCServer:
     self.store.update(d)
 
   def get(self, key):
+    time.sleep(0.02) # so parallel processing shows
     if key in self.store:
       return self.store[key]
     else:

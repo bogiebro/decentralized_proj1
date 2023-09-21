@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from threading  import Lock
 from collections import defaultdict
 
-# NOTE: currently disabled to test concurrency
 class RWLock:
     def __init__(self):
       self.w_lock = Lock()
@@ -10,14 +9,12 @@ class RWLock:
       self.num_r = 0
 
     def r_acquire(self):
-      return
       with self.num_r_lock:
         self.num_r += 1
         if self.num_r == 1:
           self.w_lock.acquire()
 
     def r_release(self):
-      return 
       assert self.num_r > 0
       with self.num_r_lock:
         self.num_r -= 1
@@ -25,11 +22,9 @@ class RWLock:
           self.w_lock.release()
 
     def w_acquire(self):
-      return
       self.w_lock.acquire()
 
     def w_release(self):
-      return
       self.w_lock.release()
 
     @contextmanager

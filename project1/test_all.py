@@ -4,20 +4,19 @@ import xmlrpc.client
 import random
 import time
 import pytest
+import concurrent.futures as futures
 
 baseAddr = "http://localhost:"
 baseClientPort = 7000
 baseFrontendPort = 8001
 baseServerPort = 9000
 
-clientList = []
-clientProcs = []
-
-def addClient(clients):
-    clientUID = len(clients.clientList)
-    clients.clientProcs.append(sp.Popen(["python", "client.py", "-i", str(clientUID)]))
+@pytest.fixture(scope="module")
+def client():
+    client = sp.Popen(["python", "client.py", "-i", str(0)])
     time.sleep(1)
-    clients.clientList.append(xmlrpc.client.ServerProxy(baseAddr + str(baseClientPort + clientUID)))
+    yield xmlrpc.client.ServerProxy(baseAddr + str(baseClientPort))
+    client.kill()
 
 def addServer(frontend, servers):
     id = servers.next
@@ -36,13 +35,6 @@ def killServer(servers, serverId):
 def shutdownServer(frontend, serverId):
     frontend.shutdownServer(serverId)
 
-def put(clients, key, value):
-    return clients.clientList[random.randint(0, len(clients.clientList) - 1)].put(key, value)
-
-def get(clients, key):
-    client = clients.clientList[random.randint(0, len(clients.clientList) - 1)]
-    return client.get(key)
-
 def printKVPairs(frontend, serverId):
     return frontend.printKVPairs(serverId)
 
@@ -59,13 +51,8 @@ class ServerList:
     self.map = dict()
     self.next = 0
 
-class ClientList:
-  def __init__(self):
-    self.clientProcs = []
-    self.clientList = []
-
-@pytest.fixture
-def servers(scope="function"):
+@pytest.fixture(scope="function")
+def servers():
   s = ServerList()
   yield s
   for v in s.map.values():
@@ -73,39 +60,58 @@ def servers(scope="function"):
   for v in s.map.values():
     v.wait()
 
-@pytest.fixture
-def clients(scope="module"):
-  s = ClientList()
-  yield s
-  for v in s.clientProcs:
-    v.kill()
-
-def test_kvstore(frontend, servers, clients):
-  for _ in range(3):
+def test_kvstore(frontend, servers, client):
+  for _ in range(6):
     addServer(frontend, servers)
-  addClient(clients)
-  put(clients, "hey", "jude")
-  assert get(clients, "hey") == "jude"
+  client.put("hey", "jude")
+  for _ in range(10):
+    assert client.get("hey") == "jude"
 
-# def test_heartbeat(frontend, servers, clients):
-#     addServer(frontend, servers)
-#     addServer(frontend, servers)
-#     assert listServer(frontend) == "0, 1"
-#     killServer(servers, 0)
-#     time.sleep(1)
-#     assert listServer(frontend) == "1"
+def test_monotonic(frontend, servers, client):
+  for _ in range(6):
+    addServer(frontend, servers)
+  tokill = iter(range(6))
+  def runner():
+    val = client.get("hey")
+    if val == "ERR_KEY":
+      return
+    client.put("hey", val + 1)
+    try:
+      if random.random() < 0.1:
+        killServer(next(tokill), tokill)
+    except StopIteration:
+      pass
+    val2 = client.get("hey")
+    if val != "ERR_KEY":
+      assert val >= (val + 1)
+  with futures.ThreadPoolExecutor() as ex:
+    for _ in range(500):
+      ex.submit(runner)
 
-@pytest.mark.parametrize("n", [1, 2])
-def test_conc_reads(frontend, servers, n):
+def test_heartbeat(frontend, servers):
+    addServer(frontend, servers)
+    addServer(frontend, servers)
+    assert listServer(frontend) == "0, 1"
+    killServer(servers, 0)
+    time.sleep(1)
+    assert listServer(frontend) == "1"
+
+def test_conc_reads(frontend, servers, client):
+  addServer(frontend, servers)
+  client.put("key", 5)
+  a = timeReads(client)
   multicall = xmlrpc.client.MultiCall(frontend)
-  for i in range(n):
+  for i in range(6):
     addServer(frontend, servers)
   _ = multicall()
-  sp.run(["python", "clientWriter.py", "-v" "5"])
-  procs = [sp.Popen(["python", "clientReader.py"]) for _ in range(500)]
+  b = timeReads(client)
+  assert b < a
+
+def timeReads(client):
   start_time = time.time()
-  for p in procs:
-    p.wait()
+  with futures.ThreadPoolExecutor() as ex:
+    for _ in range(500):
+      ex.submit(lambda : client.get(key))
   end_time = time.time()
-  logging.warning(f"Time with {n} {end_time - start_time}")
+  return end_time - start_time
 
