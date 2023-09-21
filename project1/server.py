@@ -1,7 +1,6 @@
 import argparse
 import xmlrpc.client
 import xmlrpc.server
-import logging
 import time
 
 serverId = 0
@@ -16,7 +15,6 @@ class KVSRPCServer:
 
   def put(self, key, value):
     self.store[key] = value
-    logging.info(f"Stored {self.store[key]}")
 
   def putAll(self, d):
     self.store.update(d)
@@ -44,8 +42,6 @@ if __name__ == '__main__':
 
     serverId = args.serverId[0]
 
-    logging.basicConfig(filename=f"server{serverId}.log", level=logging.DEBUG)
-    logging.info(f"Listening on {basePort + serverId}") 
     server = xmlrpc.server.SimpleXMLRPCServer(("localhost", basePort + serverId),
       allow_none=True, use_builtin_types=True)
     server.register_instance(KVSRPCServer())

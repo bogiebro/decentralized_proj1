@@ -3,7 +3,6 @@ import xmlrpc.client
 import xmlrpc.server
 from socketserver import ThreadingMixIn
 from xmlrpc.server import SimpleXMLRPCServer
-import logging
 
 clientId = 0
 basePort = 7000
@@ -29,9 +28,6 @@ if __name__ == '__main__':
                         help='Client id (required)', dest='clientId', required=True)
     args = parser.parse_args()
     clientId = args.clientId[0]
-    logging.basicConfig(filename=f"client{clientId}.log", level=logging.DEBUG)
-
-    logging.info(f"Listening on {basePort + clientId}") 
 
     server = SimpleThreadedXMLRPCServer(("localhost", basePort + clientId), use_builtin_types=True, allow_none=True)
     server.register_instance(ClientRPCServer())

@@ -6,7 +6,6 @@ from rwlock import RWLockDict, RWLock
 import socket
 import concurrent.futures as futures
 from contextlib import contextmanager
-import logging
 from threading import Thread
 import time
 from sortedcontainers import SortedSet
@@ -90,7 +89,6 @@ class FrontendRPCServer:
         return "ERR_NOEXIST"
 
   def addServer(self, serverId):
-    # logging.info(f"Connecting to {baseServerPort + serverId}") 
     if len(self.servers) > 0:
       server = connect(serverId)
       with self.lockdict.all_locked():
@@ -135,7 +133,6 @@ def heartbeat(frontend):
           pass
 
 
-logging.basicConfig(filename="frontend.log", level=logging.DEBUG)
 server = SimpleThreadedXMLRPCServer(("localhost", 8001))
 server.register_multicall_functions()
 rpc = FrontendRPCServer()
