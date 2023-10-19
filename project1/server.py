@@ -20,9 +20,9 @@ class KVSRPCServer:
     self.store.update(d)
 
   def get(self, key):
-    time.sleep(0.02) # so parallel processing shows
+    time.sleep(0.001) # so parallel processing shows
     if key in self.store:
-      return self.store[key]
+      return str(key) + ":" + str(self.store[key])
     else:
       return "ERR_KEY"
 

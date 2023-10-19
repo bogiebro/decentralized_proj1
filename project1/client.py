@@ -7,17 +7,18 @@ from xmlrpc.server import SimpleXMLRPCServer
 clientId = 0
 basePort = 7000
 
-frontend = xmlrpc.client.ServerProxy("http://localhost:8001")
 
 class SimpleThreadedXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer):
   pass
 
 class ClientRPCServer:
     def put(self, key, value):
+        frontend = xmlrpc.client.ServerProxy("http://localhost:8001")
         return frontend.put(key, value)
 
     def get(self, key):
         print("Client getting key", key)
+        frontend = xmlrpc.client.ServerProxy("http://localhost:8001")
         print("Looking up ", frontend._ServerProxy__host)
         return frontend.get(key)
 
