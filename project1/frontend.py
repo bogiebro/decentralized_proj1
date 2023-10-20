@@ -38,12 +38,13 @@ class FrontendRPCServer:
   def put(self, key, value):
     if len(self.servers) == 0:
       return "ERR_NOEXIST"
-    with futures.ThreadPoolExecutor() as ex:
-      with self.lockdict.w_locked(key):
-        with self.serverlock.r_locked():
-          jobs = [tag(ex.submit(lambda : connect(id).put(key, value)), id)
-            for id in self.servers]
-        results = futures.wait(jobs, timeout=1)
+    with self.serverlock.r_locked():
+      ids = [id for id in self.servers]
+    with self.lockdict.w_locked(key):
+        with futures.ThreadPoolExecutor() as ex:
+          jobs = [tag(ex.submit(lambda i: 
+            connect(i).put(key, value), id), id) for id in ids]
+          results = futures.wait(jobs, timeout=1)
         failures = get_failed(results)
         for b in failures:
             try:
@@ -55,8 +56,9 @@ class FrontendRPCServer:
 
   def get(self, key):
     with self.lockdict.r_locked(key):
-      return self.with_rand_server(lambda id:
+      result = self.with_rand_server(lambda id:
         connect(id).get(key), "ERR_KEY")
+    return result
 
   def with_rand_server(self, f, default):
     with futures.ThreadPoolExecutor() as ex:
@@ -77,6 +79,8 @@ class FrontendRPCServer:
               self.servers.discard(id)
           except KeyError:
             pass
+        except exc:
+          raise
 
   def printKVPairs(self, id):
     if id not in self.servers:
@@ -107,8 +111,11 @@ class FrontendRPCServer:
   def shutdownServer(self, serverId):
     try:
       result = connect(serverId).shutdownServer()
+    except:
+      pass
+    try:
       with self.serverlock.w_locked():
-        self.servers.discard(result)
+        self.servers.discard(serverId)
     except KeyError:
       pass
     return ""
@@ -119,18 +126,19 @@ def connect(serverId):
       allow_none=True, use_builtin_types=True)
 
 def heartbeat(frontend):
-  with futures.ThreadPoolExecutor() as ex:
-      with frontend.serverlock.r_locked():
-        jobs = [tag(ex.submit(lambda : connect(id).beat()), id)
-          for id in frontend.servers]
+    with frontend.serverlock.r_locked():
+      ids = [id for id in frontend.servers]
+    with futures.ThreadPoolExecutor() as ex:
+      jobs = [tag(ex.submit(lambda : connect(id).beat()), id)
+          for id in ids]
       results = futures.wait(jobs, timeout=1)
-      failures = get_failed(results)
-      for b in failures:
-        try:
-          with frontend.serverlock.w_locked():
-            frontend.servers.discard(b.server_id)
-        except KeyError:
-          pass
+    failures = get_failed(results)
+    for b in failures:
+      try:
+        with frontend.serverlock.w_locked():
+          frontend.servers.discard(b.server_id)
+      except KeyError:
+        pass
 
 
 server = SimpleThreadedXMLRPCServer(("localhost", 8001))

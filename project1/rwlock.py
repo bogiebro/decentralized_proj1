@@ -59,7 +59,9 @@ class RWLockDict:
     finally:
       lock.r_release()
       if lock.w_lock.acquire(blocking=False):
-        del self.locks[key]
+        if key in self.locks:
+          del self.locks[key]
+        lock.w_lock.release()
 
   @contextmanager
   def all_locked(self):
@@ -82,7 +84,9 @@ class RWLockDict:
     finally:
       lock.w_release()
       if lock.w_lock.acquire(blocking=False):
-        del self.locks[key]
+        if key in self.locks:
+          del self.locks[key]
+        lock.w_lock.release()
       assert self.num_w > 0
       with self.num_w_lock:
         self.num_w -= 1

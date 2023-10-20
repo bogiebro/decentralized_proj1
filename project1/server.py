@@ -14,15 +14,15 @@ class KVSRPCServer:
     return self.store 
 
   def put(self, key, value):
-    self.store[key] = value
+    self.store[str(key)] = str(value)
 
   def putAll(self, d):
     self.store.update(d)
 
   def get(self, key):
-    time.sleep(0.001) # so parallel processing shows
+    key = str(key)
     if key in self.store:
-      return str(key) + ":" + str(self.store[key])
+      return key + ":" + self.store[key]
     else:
       return "ERR_KEY"
 
