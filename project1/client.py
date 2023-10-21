@@ -17,9 +17,7 @@ class ClientRPCServer:
         return frontend.put(key, value)
 
     def get(self, key):
-        print("Client getting key", key)
         frontend = xmlrpc.client.ServerProxy("http://localhost:8001")
-        print("Looking up ", frontend._ServerProxy__host)
         return frontend.get(key)
 
 if __name__ == '__main__':
@@ -30,7 +28,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     clientId = args.clientId[0]
 
-    server = SimpleThreadedXMLRPCServer(("localhost", basePort + clientId), use_builtin_types=True, allow_none=True)
+    server = SimpleThreadedXMLRPCServer(("localhost", basePort + clientId), use_builtin_types=True,
+      allow_none=True, logRequests=False)
     server.register_instance(ClientRPCServer())
 
     server.serve_forever()

@@ -141,7 +141,7 @@ def heartbeat(frontend):
         pass
 
 
-server = SimpleThreadedXMLRPCServer(("localhost", 8001))
+server = SimpleThreadedXMLRPCServer(("localhost", 8001), logRequests=False)
 server.register_multicall_functions()
 rpc = FrontendRPCServer()
 server.register_instance(rpc)

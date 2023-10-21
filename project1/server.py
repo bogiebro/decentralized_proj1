@@ -43,7 +43,7 @@ if __name__ == '__main__':
     serverId = args.serverId[0]
 
     server = xmlrpc.server.SimpleXMLRPCServer(("localhost", basePort + serverId),
-      allow_none=True, use_builtin_types=True)
+      allow_none=True, use_builtin_types=True, logRequests=False)
     server.register_instance(KVSRPCServer())
 
     server.serve_forever()
