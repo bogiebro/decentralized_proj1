@@ -79,7 +79,7 @@ class FrontendRPCServer:
               self.servers.discard(id)
           except KeyError:
             pass
-        except exc:
+        except:
           raise
 
   def printKVPairs(self, id):
@@ -131,7 +131,7 @@ def heartbeat(frontend):
     with futures.ThreadPoolExecutor() as ex:
       jobs = [tag(ex.submit(lambda : connect(id).beat()), id)
           for id in ids]
-      results = futures.wait(jobs, timeout=1)
+      results = futures.wait(jobs, timeout=0.5)
     failures = get_failed(results)
     for b in failures:
       try:
